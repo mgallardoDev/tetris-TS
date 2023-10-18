@@ -164,11 +164,10 @@ const checkColision = (): boolean => {
      return false;
 };
 
-const dropTetrimino = (tetrimino: Tetrimino) => {
-     return {
-          ...tetrimino,
-          pos: { x: tetrimino.pos?.x!, y: tetrimino.pos?.y! + 1 },
-     };
+const dropTetrimino = () => {
+     if (!state.currentTetrimino) return;
+     state.currentTetrimino.pos!.y += 1;
+     checkColision() ? stickTetrimino() : refreshBoard();
 };
 const state: TetrisState = {
      lastTime: 0,
@@ -183,6 +182,12 @@ const state: TetrisState = {
 const saveCurrentBoard = () => {
      state.prevBoard = structuredClone(state.currentBoard);
 };
+const saveBoard = () => (state.board = structuredClone(state.prevBoard));
+const refreshBoard = () => {
+     putTetriminoOnBoard();
+     saveCurrentBoard();
+     drawBoard();
+};
 //MOVIMIENTOS
 const moveLeft = () => {
      if (!state.currentTetrimino) return;
@@ -192,6 +197,26 @@ const moveRight = () => {
      if (!state.currentTetrimino) return;
      state.currentTetrimino.pos!.x += 1;
 };
+
+const turnTetrimino = () => {
+     if (!state.currentTetrimino) return;
+     const newShape = Array.from(
+          { length: state.currentTetrimino?.shape[0].length },
+          () => Array(state.currentTetrimino?.shape.length).fill('0')
+     );
+     for (let y = 0; y < state.currentTetrimino?.shape.length; y++) {
+          for (let x = 0; x < state.currentTetrimino?.shape[0].length; x++) {
+               newShape[x][state.currentTetrimino?.shape.length - 1 - y] =
+                    state.currentTetrimino?.shape[y][x];
+          }
+     }
+     const prevShape = state.currentTetrimino.shape;
+     state.currentTetrimino.shape = newShape;
+
+     checkColision()
+          ? (state.currentTetrimino.shape = prevShape)
+          : refreshBoard();
+};
 const gameLoop = (time: number) => {
      state.currentBoard = structuredClone(state.board);
      state.currentTetrimino = state.currentTetrimino ?? setRndTetrimino();
@@ -200,17 +225,8 @@ const gameLoop = (time: number) => {
      state.lastTime = time;
 
      if (state.deltaTime >= initialDeltaTime) {
-          state.currentTetrimino = dropTetrimino(state.currentTetrimino);
           state.deltaTime = 0;
-          if (checkColision()) {
-               //  state.lastMovementArrow ? printTetrimino() : null;
-               state.board = structuredClone(state.prevBoard);
-               state.currentTetrimino = null;
-          } else {
-               putTetriminoOnBoard();
-               saveCurrentBoard();
-               drawBoard();
-          }
+          dropTetrimino();
      }
 
      requestAnimationFrame(gameLoop);
@@ -222,15 +238,17 @@ document.addEventListener('keydown', (event) => {
      switch (event.key) {
           case 'ArrowRight':
                moveRight();
-               checkColision()
-                    ? moveLeft()
-                    : (putTetriminoOnBoard(), saveCurrentBoard(), drawBoard());
+               checkColision() ? moveLeft() : refreshBoard();
                break;
           case 'ArrowLeft':
                moveLeft();
-               checkColision()
-                    ? moveRight()
-                    : (putTetriminoOnBoard(), saveCurrentBoard(), drawBoard());
+               checkColision() ? moveRight() : refreshBoard();
+               break;
+          case 'ArrowDown':
+               dropTetrimino();
+               break;
+          case 'ArrowUp':
+               turnTetrimino();
                break;
      }
 });
@@ -238,3 +256,7 @@ document.addEventListener('keydown', (event) => {
 const ctx = canvas?.getContext('2d') ?? null;
 
 requestAnimationFrame(gameLoop);
+function stickTetrimino() {
+     saveBoard();
+     state.currentTetrimino = null;
+}
