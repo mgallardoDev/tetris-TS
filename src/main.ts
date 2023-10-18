@@ -8,6 +8,7 @@ interface TetrisState {
      prevBoard: ColorCell[][];
      currentTetrimino: Tetrimino | null;
      isChangedState: boolean;
+     lastMovementArrow: boolean;
 }
 
 const rows = 20;
@@ -93,6 +94,10 @@ const drawSqare = (
      const sizeY: number = ctx.canvas.width / cols;
      ctx.fillStyle = color;
      ctx.fillRect(x * sizeX, y * sizeY, sizeX, sizeY);
+     ctx.fillStyle = 'black';
+     ctx.fillRect(x * sizeX + 3, y * sizeY + 3, sizeX - 6, sizeY - 6);
+     ctx.fillStyle = color;
+     ctx.fillRect(x * sizeX + 4, y * sizeY + 4, sizeX - 8, sizeY - 8);
 };
 
 const drawBoard = () => {
@@ -120,13 +125,13 @@ const setRndTetrimino = (): Tetrimino => {
           ][1];
 
      tetrimino.pos = { x: Math.floor(Math.random() * 8), y: 0 };
-     printTetrimino(tetrimino);
+     putTetriminoOnBoard(tetrimino);
      drawBoard();
 
      return tetrimino;
 };
-const printTetrimino = (tetrimino?: Tetrimino) => {
-      let tetrim = tetrimino ?? state.currentTetrimino!
+const putTetriminoOnBoard = (tetrimino?: Tetrimino) => {
+     let tetrim = tetrimino ?? state.currentTetrimino!;
      for (let y = 0; y < tetrim.shape.length; y++) {
           for (let x = 0; x < tetrim.shape[y].length; x++) {
                if (tetrim.shape[y][x] === 1) {
@@ -137,20 +142,25 @@ const printTetrimino = (tetrimino?: Tetrimino) => {
      }
 };
 
-const checkColision = (tetrimino: Tetrimino, board: any): boolean => {
-     for (let y = 0; y < tetrimino.shape.length; y++) {
-          for (let x = 0; x < tetrimino.shape[y].length; x++) {
+const checkColision = (): boolean => {
+     if (!state.currentTetrimino) return false;
+     for (let y = 0; y < state.currentTetrimino.shape.length; y++) {
+          for (let x = 0; x < state.currentTetrimino.shape[y].length; x++) {
                if (
-                    !board[tetrimino.pos!.y + y] ||
-                    !board[tetrimino.pos!.y + y][tetrimino.pos!.x + x] ||
-                    (tetrimino.shape[y][x] === 1 &&
-                         board[tetrimino.pos!.y + y][tetrimino.pos!.x + x] !==
-                              'black')
+                    !state.currentBoard[state.currentTetrimino.pos!.y + y] ||
+                    !state.currentBoard[state.currentTetrimino.pos!.y + y][
+                         state.currentTetrimino.pos!.x + x
+                    ] ||
+                    (state.currentTetrimino.shape[y][x] === 1 &&
+                         state.currentBoard[state.currentTetrimino.pos!.y + y][
+                              state.currentTetrimino.pos!.x + x
+                         ] !== 'black')
                ) {
                     return true;
                }
           }
      }
+
      return false;
 };
 
@@ -168,6 +178,19 @@ const state: TetrisState = {
      prevBoard: [],
      currentTetrimino: null,
      isChangedState: false,
+     lastMovementArrow: false,
+};
+const saveCurrentBoard = () => {
+     state.prevBoard = structuredClone(state.currentBoard);
+};
+//MOVIMIENTOS
+const moveLeft = () => {
+     if (!state.currentTetrimino) return;
+     state.currentTetrimino.pos!.x -= 1;
+};
+const moveRight = () => {
+     if (!state.currentTetrimino) return;
+     state.currentTetrimino.pos!.x += 1;
 };
 const gameLoop = (time: number) => {
      state.currentBoard = structuredClone(state.board);
@@ -179,12 +202,13 @@ const gameLoop = (time: number) => {
      if (state.deltaTime >= initialDeltaTime) {
           state.currentTetrimino = dropTetrimino(state.currentTetrimino);
           state.deltaTime = 0;
-          if (checkColision(state.currentTetrimino, state.board)) {
+          if (checkColision()) {
+               //  state.lastMovementArrow ? printTetrimino() : null;
                state.board = structuredClone(state.prevBoard);
                state.currentTetrimino = null;
           } else {
-               printTetrimino();
-               state.prevBoard = structuredClone(state.currentBoard);
+               putTetriminoOnBoard();
+               saveCurrentBoard();
                drawBoard();
           }
      }
@@ -195,20 +219,19 @@ const gameLoop = (time: number) => {
 const canvas = <HTMLCanvasElement | null>document.querySelector('#board');
 
 document.addEventListener('keydown', (event) => {
-     if (!state.currentTetrimino) return;
-
      switch (event.key) {
           case 'ArrowRight':
-               state.currentTetrimino.pos!.x += 1;
-               printTetrimino();
-               drawBoard()
+               moveRight();
+               checkColision()
+                    ? moveLeft()
+                    : (putTetriminoOnBoard(), saveCurrentBoard(), drawBoard());
                break;
           case 'ArrowLeft':
-               state.currentTetrimino.pos!.x -= 1;
-               printTetrimino();
-               drawBoard()
+               moveLeft();
+               checkColision()
+                    ? moveRight()
+                    : (putTetriminoOnBoard(), saveCurrentBoard(), drawBoard());
                break;
-
      }
 });
 
