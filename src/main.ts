@@ -13,7 +13,7 @@ interface TetrisState {
 
 const rows = 20;
 const cols = 10;
-const initialDeltaTime = 500;
+const initialDeltaTime = 250;
 
 type ColorCell =
      | 'black'
@@ -183,10 +183,37 @@ const saveCurrentBoard = () => {
      state.prevBoard = structuredClone(state.currentBoard);
 };
 const saveBoard = () => (state.board = structuredClone(state.prevBoard));
+
 const refreshBoard = () => {
      putTetriminoOnBoard();
      saveCurrentBoard();
      drawBoard();
+     if (areCompleteLines()) {
+          clearCompleteLines();
+          completeBoardWithBlackLines();
+          saveBoard();
+          drawBoard();
+     }
+};
+const areCompleteLines = () => {
+     return state.currentBoard.some((row) =>
+          row.every((cell) => cell !== 'black')
+     );
+};
+const clearCompleteLines = () => {
+    state.currentBoard = state.currentBoard.filter((row) =>
+          row.every((cell) => cell !== 'black')
+     );
+};
+
+const completeBoardWithBlackLines = () => {
+     while (state.currentBoard.length > rows) {
+          state.currentBoard.unshift(blackLine());
+     }
+     console.log('completing') 
+};
+const blackLine = (): ColorCell[] => {
+     return Array.from({ length: cols }, () => 'black');
 };
 //MOVIMIENTOS
 const moveLeft = () => {
@@ -256,7 +283,8 @@ document.addEventListener('keydown', (event) => {
 const ctx = canvas?.getContext('2d') ?? null;
 
 requestAnimationFrame(gameLoop);
-function stickTetrimino() {
+
+const stickTetrimino = () => {
      saveBoard();
      state.currentTetrimino = null;
-}
+};
